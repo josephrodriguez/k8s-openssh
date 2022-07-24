@@ -1,0 +1,39 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  labels:
+    app: openssh-server
+  name: openssh-server
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: openssh-server
+  template:
+    metadata:
+      labels:
+        app: openssh-server
+    spec:
+      volumes:
+      - name: openssh-volume
+        persistentVolumeClaim:
+          claimName: openssh-server-claim
+      - name: openssh-custom-init-volume
+        configMap:
+          name: openssh-server-custom-init
+          defaultMode: 0744
+      containers:
+      - image: lscr.io/linuxserver/openssh-server
+        name: openssh-server
+        envFrom:
+        - configMapRef:
+            name: openssh-server-env
+        - secretRef:
+            name: openssh-server-env
+        ports:
+        - containerPort: 2222
+        volumeMounts:
+        - name: openssh-volume
+          mountPath: "/config"
+        - name: openssh-custom-init-volume
+          mountPath: /config/custom-cont-init.d
