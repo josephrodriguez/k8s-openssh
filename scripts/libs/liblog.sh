@@ -15,7 +15,7 @@ CYAN='\033[38;5;6m'
 # Returns:
 #   None
 # ==============================================================================
-stderr_print() {
+function stderr_print() {
     printf "%b\\n" "${*}" >&2
 }
 
@@ -26,7 +26,7 @@ stderr_print() {
 # Returns:
 #   None
 # ==============================================================================
-log() {
+function log() {
     stderr_print "${CYAN}${MODULE:-} ${MAGENTA}$(date "+%T.%2N ")${RESET}${*}"
 }
 
@@ -37,7 +37,7 @@ log() {
 # Returns:
 #   None
 # ==============================================================================
-info() {
+function info() {
     log "${GREEN}INFO ${RESET} ==> ${*}"
 }
 
@@ -48,7 +48,7 @@ info() {
 # Returns:
 #   None
 # ==============================================================================
-warn() {
+function warn() {
     log "${YELLOW}WARN ${RESET} ==> ${*}"
 }
 
@@ -59,7 +59,7 @@ warn() {
 # Returns:
 #   None
 # ==============================================================================
-error() {
+function error() {
     log "${RED}ERROR${RESET} ==> ${*}"
 }
 
@@ -70,7 +70,7 @@ error() {
 # Returns:
 #   None
 # ==============================================================================
-debug() {
+function debug() {
     log "${MAGENTA}DEBUG${RESET} ==> ${*}"
 }
 
@@ -81,8 +81,8 @@ debug() {
 # Returns:
 #   None
 # ==============================================================================
-debug_text() {
-    IFS=$'\n' read -rd '' -a logs <<< $1
+function debug_text() {
+    IFS=$'\r\n' read -rd '' -a logs <<< $1
     for line in "${logs[@]}"
       do
         debug "$line"
@@ -96,11 +96,14 @@ debug_text() {
 # Returns:
 #   None
 # ==============================================================================
-debug_section() {
+function debug_section() {
+    local SECTION_NAME=$1
+    local TEXT=$2
+
     section=$(printf -- '-%.0s' {1..64})
 
     debug "$section"
-    debug "$1"
+    debug "$SECTION_NAME"
     debug "$section"
-    debug_text "$2"
+    debug_text "$TEXT"
 }

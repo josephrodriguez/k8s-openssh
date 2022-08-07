@@ -7,8 +7,10 @@
 # Returns:
 #   None
 # ==============================================================================
-query_package_version() {
-    echo $(dpkg-query --showformat='${Version}' --show  $1 2>/dev/null)
+function query_package_version() {
+    local PACKAGE=$1
+
+    echo $(dpkg-query --showformat='${Version}' --show  $PACKAGE 2>/dev/null)
 }
 
 # ==============================================================================
@@ -18,8 +20,10 @@ query_package_version() {
 # Returns:
 #   None
 # ==============================================================================
-install_package() {      
-    sudo apt-get install $1 -y
+function install_package() { 
+    local PACKAGE=$1
+
+    sudo apt-get install $PACKAGE -y
 }
 
 # ==============================================================================
@@ -29,7 +33,7 @@ install_package() {
 # Returns:
 #   None
 # ==============================================================================
-install_required_packages() {
+function install_required_packages() {
     arr=("$@")
     for package in "${arr[@]}";
         do

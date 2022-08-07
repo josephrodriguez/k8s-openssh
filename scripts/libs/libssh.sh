@@ -9,17 +9,14 @@
 # Returns:
 #   None
 # ==============================================================================
-generate_ssh_key() {
-    debug "Generating key..."
-    debug "~/.ssh/$3"
+function generate_ssh_key() {
+    local KEY_TYPE=$1
+    local KEY_SIZE=$2
+    local OUTPUT_PATH=$3
+    local USERNAME=$4
+    local SERVER=$5
 
-    type=$1
-    size=$2
-    output=$3
-    username=$4
-    server=$5
-
-    puttygen -t $type -b $size -o $output -C "$username@$server" -q
+    puttygen -t $KEY_TYPE -b $KEY_SIZE -o $OUTPUT_PATH -C "$USERNAME@$SERVER" -q
 }
 
 # ==============================================================================
@@ -29,8 +26,8 @@ generate_ssh_key() {
 # Returns:
 #   None
 # ==============================================================================
-extract_public_key() {
-    private_key_file=$1
+function extract_public_key() {
+    local PRIVATE_KEY_FILE=$1
 
-    echo $(puttygen -L $private_key_file)
+    puttygen -L $PRIVATE_KEY_FILE
 }
