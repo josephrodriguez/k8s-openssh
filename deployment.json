@@ -1,0 +1,78 @@
+{
+    "kind": "Deployment",
+    "apiVersion": "apps/v1",
+    "metadata": {
+        "name": "openssh-deployment",
+        "creationTimestamp": null,
+        "labels": {
+            "app": "openssh-deployment"
+        }
+    },
+    "spec": {
+        "replicas": 1,
+        "selector": {
+            "matchLabels": {
+                "app": "openssh-deployment"
+            }
+        },
+        "template": {
+            "metadata": {
+                "creationTimestamp": null,
+                "labels": {
+                    "app": "openssh-deployment"
+                }
+            },
+            "spec": {
+                "containers": [
+                    {
+                        "name": "openssh-server",
+                        "image": "lscr.io/linuxserver/openssh-server",
+                        "ports": [
+                            {
+                                "containerPort": 22
+                            }
+                        ],
+                        "resources": {},
+                        "envFrom": [
+                            {
+                                "configMapRef": {
+                                    "name": "openssh-secret"
+                                }
+                            },
+                            {
+                                "secretRef": {
+                                    "name": "openssh-secret"
+                                }
+                            }
+                        ],
+                        "volumeMounts": [
+                            {
+                                "name": "openssh-init-config",
+                                "mountPath": "/config/custom-cont-init.d"
+                            },
+                            {
+                                "name": "default-config-volume",
+                                "mountPath": "/config"
+                            }
+                        ]
+                    }
+                ],
+                "volumes": [
+                    {
+                        "name": "openssh-init-config",
+                        "configMap": {
+                            "name": "openssh-init-config"
+                        }
+                    },
+                    {
+                        "name": "default-config-volume",
+                        "persistentVolumeClaim": {
+                            "claimName": "openssh-claim"
+                        }
+                    }
+                ]
+            }
+        },
+        "strategy": {}
+    }
+}

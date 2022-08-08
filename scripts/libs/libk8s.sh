@@ -192,10 +192,10 @@ function k8s_create_persistent_volume() {
         --arg ACCESS_MODE "$3" \
         --arg STORAGE "$4" \
         --arg PATH "$5" \
-        '.metadata.name=$NAME | .spec.storageClassName=$CLASSNAME | .spec.accessModes=[$ACCESS_MODE] | .spec.capacity=$STORAGE | .spec.hostPath.path=$PATH')
+        '.metadata.name=$NAME | .spec.storageClassName=$CLASSNAME | .spec.accessModes=[$ACCESS_MODE] | .spec.capacity.storage=$STORAGE | .spec.hostPath.path=$PATH')
 
     if [[ "$DRY_RUN" == "true" ]]; then 
-        echo "$PERSISTENT_VOLUME_YAML"
+        debug "$PERSISTENT_VOLUME_YAML"
     else 
         kubectl apply -f - <<< "$PERSISTENT_VOLUME_YAML"
     fi
@@ -210,13 +210,14 @@ function k8s_create_persistent_volume() {
 # ==============================================================================
 function k8s_create_persistent_volume_claim() {
 
-    local DRY_RUN=$5
+    local NAMESPACE=$2
+    local DRY_RUN=$6
 
-    PERSISTENT_VOLUME_CLAIM_JSON=$(k8s_get_resource_template "v1" "PersistentVolumeClaim" "default" \
+    PERSISTENT_VOLUME_CLAIM_JSON=$(k8s_get_resource_template "v1" "PersistentVolumeClaim" "$NAMESPACE" \
     | jq --arg NAME "$1" \
-        --arg CLASSNAME "$2" \
-        --arg ACCESS_MODE "$3" \
-        --arg STORAGE "$4" \
+        --arg CLASSNAME "$3" \
+        --arg ACCESS_MODE "$4" \
+        --arg STORAGE "$5" \
         '.metadata.name=$NAME | .spec.storageClassName=$CLASSNAME | .spec.accessModes=[$ACCESS_MODE] | .spec.resources.requests.storage=$STORAGE')
 
     if [[ "$DRY_RUN" == "true" ]]; then 
@@ -230,20 +231,21 @@ function k8s_create_deployment() {
 
     local DEPLOYMENT_NAME=$1
     local IMAGE_NAME=$2
-    local CONTAINER_PORT=$3
-    local DRY_RUN=$8
+    local NAMESPACE=$3
+    local CONTAINER_PORT=$4
+    local DRY_RUN=$9
 
-    DEPLOYMENT_JSON=$(kubectl create deployment $DEPLOYMENT_NAME --image=$IMAGE_NAME --port=$CONTAINER_PORT --dry-run=client -o json \
-    | jq --arg CONFIGMAP_ENV_NAME $4 \
-        --arg CONFIGMAP_ENV_NAME $5 \
-        '.spec.template.spec.containers[0].envFrom+=[{"configMapRef":{"name":$CONFIGMAP_ENV_NAME}},{"secretRef":{"name":$CONFIGMAP_ENV_NAME}}]' \
-    | jq --arg CONFIGMAP_VOLUME_NAME $6 '.spec.template.spec.volumes+=[{"name":$CONFIGMAP_VOLUME_NAME, "configMap":{"name":$CONFIGMAP_VOLUME_NAME,"defaultMode":"0755"}}]' \
-    | jq --arg PERSISTENT_CLAIM_NAME $7 '.spec.template.spec.volumes+=[{"name":"default-config-volume", "persistentVolumeClaim":{"claimName":$PERSISTENT_CLAIM_NAME}}]' \
-    | jq --arg CONFIGMAP_VOLUME_NAME $6 '.spec.template.spec.containers[0].volumeMounts+=[{"name":$CONFIGMAP_VOLUME_NAME,"mountPath":"/config/custom-cont-init.d"}]' \
+    DEPLOYMENT_JSON=$(kubectl create deployment $DEPLOYMENT_NAME --image=$IMAGE_NAME --port=$CONTAINER_PORT --namespace=$NAMESPACE --dry-run=client -o json \
+    | jq --arg SECRET_ENV_NAME $5 \
+        --arg CONFIGMAP_ENV_NAME $6 \
+        '.spec.template.spec.containers[0].envFrom+=[{"configMapRef":{"name":$CONFIGMAP_ENV_NAME}},{"secretRef":{"name":$SECRET_ENV_NAME}}]' \
+    | jq --arg CONFIGMAP_VOLUME_NAME $7 '.spec.template.spec.volumes+=[{"name":$CONFIGMAP_VOLUME_NAME, "configMap":{"name":$CONFIGMAP_VOLUME_NAME}}]' \
+    | jq --arg PERSISTENT_CLAIM_NAME $8 '.spec.template.spec.volumes+=[{"name":"default-config-volume", "persistentVolumeClaim":{"claimName":$PERSISTENT_CLAIM_NAME}}]' \
+    | jq --arg CONFIGMAP_VOLUME_NAME $7 '.spec.template.spec.containers[0].volumeMounts+=[{"name":$CONFIGMAP_VOLUME_NAME,"mountPath":"/config/custom-cont-init.d"}]' \
     | jq '.spec.template.spec.containers[0].volumeMounts+=[{"name":"default-config-volume","mountPath":"/config"}]')
 
     if [[ "$DRY_RUN" == "true" ]]; then 
-        echo "$DEPLOYMENT_JSON"
+        debug "$DEPLOYMENT_JSON"
     else
         kubectl apply -f - <<< "$DEPLOYMENT_JSON"
     fi
@@ -263,5 +265,8 @@ function k8s_get_resource_template() {
     local NAMESPACE=$3
 
     echo '{}' \
-    | jq --arg API_VERSION $API_VERSION --arg KIND $KIND  --arg NAMESPACE $NAMESPACE '.apiVersion=$API_VERSION | .kind=$KIND | .metadata.namespace=$NAMESPACE'
+    | jq --arg API_VERSION $API_VERSION \
+        --arg KIND $KIND \
+        --arg NAMESPACE $NAMESPACE \
+        '.apiVersion=$API_VERSION | .kind=$KIND | .metadata.namespace=$NAMESPACE'
 }

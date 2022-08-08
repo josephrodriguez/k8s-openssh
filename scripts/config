@@ -17,25 +17,25 @@ SSH_KEY_SIZE=2048
 SSH_KEY_PATH=~/.ssh/linuxserver.io.ppk
 SSH_USERNAME="linuxserver.io"
 SSH_SERVER_NAME="openssh"
-SSH_SERVER_PORT=22
+SSH_SERVER_PORT=2222
 SSH_CUSTOM_INIT_PATH="$PWD/custom-init/"
 
 # K8S
-K8S_DRY_RUN=true
+K8S_DRY_RUN=false
 
 K8S_NAMESPACE_NAME="openssh"
 
-K8S_DEPLOYMENT_NAME="openssh"
+K8S_DEPLOYMENT_NAME="openssh-deployment"
 K8S_DEPLOYMENT_IMAGE="lscr.io/linuxserver/openssh-server"
 
-K8S_SECRET_ENV_NAME="openssh"
+K8S_SECRET_ENV_NAME="openssh-secret"
 
-K8S_CONFIGMAP_VOLUME_NAME="init-config"
-K8S_CONFIGMAP_ENV_NAME="openssh"
+K8S_CONFIGMAP_VOLUME_NAME="openssh-init-config"
+K8S_CONFIGMAP_ENV_NAME="openssh-env"
 
 K8S_SERVICE_NAME="openssh-svc"
 
-K8S_PERSISTENT_VOLUME_NAME="openssh"
+K8S_PERSISTENT_VOLUME_NAME="openssh-volume"
 K8S_PERSISTENT_VOLUME_STORAGE_CLASSNAME="manual"
 K8S_PERSISTENT_VOLUME_STORAGE="50Mi"
 K8S_PERSISTENT_VOLUME_PATH="/ssh/config"
