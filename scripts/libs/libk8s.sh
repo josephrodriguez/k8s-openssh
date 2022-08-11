@@ -19,7 +19,7 @@ function get_current_context() {
 #   None
 # ==============================================================================
 function get_cluster_server() {
-    kubectl config view --minify -o json | jq '.clusters[].cluster.server' | tr -d '"'
+    kubectl config view --minify -o jsonpath='{.clusters[0].cluster.server}'
 }
 
 # ==============================================================================
@@ -30,8 +30,10 @@ function get_cluster_server() {
 #   None
 # ==============================================================================
 function get_cluster_status() {
-    info "$1"
-    curl -k -s -D - "$1/healthz" 2> /dev/null
+
+    local k8s_server=$1
+
+    curl --insecure --silent --max-time 15 -w "%{http_code}\n" --output /dev/null "$k8s_server/healthz" 
 }
 
 # ==============================================================================
@@ -42,7 +44,9 @@ function get_cluster_status() {
 #   None
 # ==============================================================================
 function get_cluster_readiness() {
-    curl -k -s -D - "$1/readyz?verbose" 2> /dev/null
+
+    local k8s_server=$1
+    curl --insecure --silent --max-time 15 -w "%{http_code}\n" --output /dev/null "$k8s_server/readyz?verbose"
 }
 
 # ==============================================================================
@@ -65,20 +69,20 @@ function get_cluster_nodes() {
 # ==============================================================================
 function k8s_create_namespace_if_not_exist() {
 
-    local NAMESPACE_NAME=$1
-    local DRY_RUN=$2
+    local namespace=$1
+    local dry_run=$2
 
-    RESPONSE=$(kubectl get ns "$NAMESPACE_NAME" -o jsonpath='{.status.phase}')
+    namespace_status=$(kubectl get ns "$namespace" -o jsonpath='{.status.phase}')
 
-    if [[ "$RESPONSE" == "Active" ]]; then 
-        echo "$RESPONSE"
+    if [[ "$namespace_status" == "Active" ]]; then 
+        echo "namespace/$namespace already exist"
     else
-        NAMESPACE_YAML=$(kubectl create ns "$NAMESPACE_NAME" --dry-run=client -o yaml)
+        yaml=$(kubectl create ns "$namespace" --dry-run=client -o yaml)
 
-        if [[ "$DRY_RUN" == "true" ]]; then
-            echo "$NAMESPACE_YAML"
+        if [[ "$dry_run" == "true" ]]; then
+            echo "namespace/$namespace created"
         else
-            kubectl apply -f - <<< "$NAMESPACE_YAML"
+            kubectl apply -f - <<< "$yaml"
         fi
     fi
 }
@@ -92,17 +96,17 @@ function k8s_create_namespace_if_not_exist() {
 # ==============================================================================
 function k8s_create_secret() {
     
-    local SECRET_NAME=$1
-    local NAMESPACE=$2
-    local PUBLIC_KEY=$3
-    local DRY_RUN=$4
+    local secret_name=$1
+    local namespace=$2
+    local public_key=$3
+    local dry_run=$4
 
-    SECRET_YAML=$(kubectl create secret generic "$SECRET_NAME" --from-literal=PUBLIC_KEY="$PUBLIC_KEY" --namespace="$NAMESPACE" --dry-run=client -o yaml)
+    yaml=$(kubectl create secret generic "$secret_name" --from-literal=PUBLIC_KEY="$public_key" --namespace="$namespace" --dry-run=client -o yaml)
 
-    if [[ "$DRY_RUN" == "true" ]]; then 
-        echo "$SECRET_YAML"
+    if [[ "$dry_run" == "true" ]]; then 
+        echo "secret/$secret_name configured"
     else
-        kubectl apply -f - <<< "$SECRET_YAML"
+        kubectl apply -f - <<< "$yaml"
     fi
 }
 
@@ -115,17 +119,17 @@ function k8s_create_secret() {
 # ==============================================================================
 function k8s_create_configmap_env() {
     
-    local CONFIGMAP_ENV_NAME=$1
-    local NAMESPACE=$2
-    local CONFIGMAP_ENV_FILEPATH=$3
-    local DRY_RUN=$4
+    local configmap_name=$1
+    local namespace=$2
+    local configmap_file_path=$3
+    local dry_run=$4
     
-    CONFIGMAP_YAML=$(kubectl create configmap $CONFIGMAP_ENV_NAME --from-env-file=$CONFIGMAP_ENV_FILEPATH --namespace="$NAMESPACE" --dry-run=client -o yaml)
+    configmap_yaml=$(kubectl create configmap $configmap_name --from-env-file=$configmap_file_path --namespace="$namespace" --dry-run=client -o yaml)
     
-    if [[ "$DRY_RUN" == "true" ]]; then 
-        debug "$CONFIGMAP_YAML"
+    if [[ "$dry_run" == "true" ]]; then 
+        echo "configmap/$configmap_name configured"
     else
-        kubectl apply -f - <<< "$CONFIGMAP_YAML"
+        kubectl apply -f - <<< "$configmap_yaml"
     fi
 }
 
@@ -138,17 +142,17 @@ function k8s_create_configmap_env() {
 # ==============================================================================
 function k8s_create_configmap_volume() {
 
-    local CONFIGMAP_VOLUME_NAME=$1
-    local NAMESPACE=$2
-    local DIRECTORY_PATH=$3
-    local DRY_RUN=$4
+    local configmap_name=$1
+    local namespace=$2
+    local directory_path=$3
+    local dry_run=$4
 
-    CONFIGMAP_YAML=$(kubectl create configmap $CONFIGMAP_VOLUME_NAME --from-file=$DIRECTORY_PATH --namespace="$NAMESPACE" --dry-run=client -o yaml)
+    configmap_yaml=$(kubectl create configmap $configmap_name --from-file=$directory_path --namespace="$namespace" --dry-run=client -o yaml)
 
-    if [[ "$DRY_RUN" == "true" ]]; then 
-        debug "$CONFIGMAP_YAML"
+    if [[ "$dry_run" == "true" ]]; then 
+        echo "configmap/$configmap_name configured"
     else
-        kubectl apply -f - <<< "$CONFIGMAP_YAML"
+        kubectl apply -f - <<< "$configmap_yaml"
     fi
 }
 
@@ -161,17 +165,17 @@ function k8s_create_configmap_volume() {
 # ==============================================================================
 function k8s_create_service() {
 
-    local SERVICE_NAME=$1
-    local SERVICE_PORT=$2
-    local NAMESPACE=$3
-    local DRY_RUN=$4
+    local service_name=$1
+    local service_port=$2
+    local namespace=$3
+    local dry_run=$4
 
-    SERVICE_YAML=$(kubectl create service clusterip "$SERVICE_NAME" --tcp=$SERVICE_PORT:$SERVICE_PORT --namespace="$NAMESPACE" --dry-run=client -o yaml)
+    service_yaml=$(kubectl create service clusterip "$service_name" --tcp=$service_port:$service_port --namespace="$namespace" --dry-run=client -o yaml)
 
-    if [[ "$DRY_RUN" == "true" ]]; then 
-        debug "$SERVICE_YAML"
+    if [[ "$dry_run" == "true" ]]; then 
+        echo "service/$service_name configured"
     else
-        kubectl apply -f - <<< "$SERVICE_YAML"
+        kubectl apply -f - <<< "$service_yaml"
     fi
 }
 
@@ -184,20 +188,21 @@ function k8s_create_service() {
 # ==============================================================================
 function k8s_create_persistent_volume() {
 
-    local DRY_RUN=$6
+    local persistent_volume_name=$1
+    local dry_run=$6
 
-    PERSISTENT_VOLUME_YAML=$(k8s_get_resource_template "v1" "PersistentVolume" "default" \
-    | jq --arg NAME "$1" \
+    persistent_volume_json=$(k8s_get_resource_template "v1" "PersistentVolume" "default" \
+    | jq --arg NAME "$persistent_volume_name" \
         --arg CLASSNAME "$2" \
         --arg ACCESS_MODE "$3" \
         --arg STORAGE "$4" \
         --arg PATH "$5" \
         '.metadata.name=$NAME | .spec.storageClassName=$CLASSNAME | .spec.accessModes=[$ACCESS_MODE] | .spec.capacity.storage=$STORAGE | .spec.hostPath.path=$PATH')
 
-    if [[ "$DRY_RUN" == "true" ]]; then 
-        debug "$PERSISTENT_VOLUME_YAML"
+    if [[ "$dry_run" == "true" ]]; then 
+        echo "persistentvolume/$persistent_volume_name configured"
     else 
-        kubectl apply -f - <<< "$PERSISTENT_VOLUME_YAML"
+        kubectl apply -f - <<< "$persistent_volume_json"
     fi
 }
 
@@ -210,32 +215,33 @@ function k8s_create_persistent_volume() {
 # ==============================================================================
 function k8s_create_persistent_volume_claim() {
 
-    local NAMESPACE=$2
-    local DRY_RUN=$6
+    local claim_name=$1
+    local namespace=$2
+    local dry_run=$6
 
-    PERSISTENT_VOLUME_CLAIM_JSON=$(k8s_get_resource_template "v1" "PersistentVolumeClaim" "$NAMESPACE" \
-    | jq --arg NAME "$1" \
+    claim_json=$(k8s_get_resource_template "v1" "PersistentVolumeClaim" "$namespace" \
+    | jq --arg NAME "$claim_name" \
         --arg CLASSNAME "$3" \
         --arg ACCESS_MODE "$4" \
         --arg STORAGE "$5" \
         '.metadata.name=$NAME | .spec.storageClassName=$CLASSNAME | .spec.accessModes=[$ACCESS_MODE] | .spec.resources.requests.storage=$STORAGE')
 
-    if [[ "$DRY_RUN" == "true" ]]; then 
-        echo "$PERSISTENT_VOLUME_CLAIM_JSON"
+    if [[ "$dry_run" == "true" ]]; then 
+        echo "persistentvolumeclaim/$claim_name configured"
     else
-        kubectl apply -f - <<< "$PERSISTENT_VOLUME_CLAIM_JSON"
+        kubectl apply -f - <<< "$claim_json"
     fi
 }
 
 function k8s_create_deployment() {
 
-    local DEPLOYMENT_NAME=$1
-    local IMAGE_NAME=$2
-    local NAMESPACE=$3
-    local CONTAINER_PORT=$4
-    local DRY_RUN=$9
+    local name=$1
+    local image_name=$2
+    local namespace=$3
+    local container_port=$4
+    local dry_run=$9
 
-    DEPLOYMENT_JSON=$(kubectl create deployment $DEPLOYMENT_NAME --image=$IMAGE_NAME --port=$CONTAINER_PORT --namespace=$NAMESPACE --dry-run=client -o json \
+    deployment_json=$(kubectl create deployment "$name" --image=$image_name --port=$container_port --namespace=$namespace --dry-run=client -o json \
     | jq --arg SECRET_ENV_NAME $5 \
         --arg CONFIGMAP_ENV_NAME $6 \
         '.spec.template.spec.containers[0].envFrom+=[{"configMapRef":{"name":$CONFIGMAP_ENV_NAME}},{"secretRef":{"name":$SECRET_ENV_NAME}}]' \
@@ -244,10 +250,10 @@ function k8s_create_deployment() {
     | jq --arg CONFIGMAP_VOLUME_NAME $7 '.spec.template.spec.containers[0].volumeMounts+=[{"name":$CONFIGMAP_VOLUME_NAME,"mountPath":"/config/custom-cont-init.d"}]' \
     | jq '.spec.template.spec.containers[0].volumeMounts+=[{"name":"default-config-volume","mountPath":"/config"}]')
 
-    if [[ "$DRY_RUN" == "true" ]]; then 
-        debug "$DEPLOYMENT_JSON"
+    if [[ "$dry_run" == "true" ]]; then 
+        echo "deployment.apps/$name configured"
     else
-        kubectl apply -f - <<< "$DEPLOYMENT_JSON"
+        kubectl apply -f - <<< "$deployment_json"
     fi
 }
 
@@ -260,13 +266,13 @@ function k8s_create_deployment() {
 # ==============================================================================
 function k8s_get_resource_template() {
 
-    local API_VERSION=$1
-    local KIND=$2
-    local NAMESPACE=$3
+    local api_version=$1
+    local kind=$2
+    local namespace=$3
 
     echo '{}' \
-    | jq --arg API_VERSION $API_VERSION \
-        --arg KIND $KIND \
-        --arg NAMESPACE $NAMESPACE \
+    | jq --arg API_VERSION $api_version \
+        --arg KIND $kind \
+        --arg NAMESPACE $namespace \
         '.apiVersion=$API_VERSION | .kind=$KIND | .metadata.namespace=$NAMESPACE'
 }

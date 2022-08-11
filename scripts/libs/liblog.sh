@@ -73,37 +73,3 @@ function error() {
 function debug() {
     log "${MAGENTA}DEBUG${RESET} ==> ${*}"
 }
-
-# ==============================================================================
-# Method description
-# Arguments:
-#   Void
-# Returns:
-#   None
-# ==============================================================================
-function debug_text() {
-    IFS=$'\r\n' read -rd '' -a logs <<< $1
-    for line in "${logs[@]}"
-      do
-        debug "$line"
-      done
-}
-
-# ==============================================================================
-# Method description
-# Arguments:
-#   Void
-# Returns:
-#   None
-# ==============================================================================
-function debug_section() {
-    local SECTION_NAME=$1
-    local TEXT=$2
-
-    section=$(printf -- '-%.0s' {1..64})
-
-    debug "$section"
-    debug "$SECTION_NAME"
-    debug "$section"
-    debug_text "$TEXT"
-}

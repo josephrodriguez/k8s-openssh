@@ -9,74 +9,6 @@
 # Returns:
 #   None
 # ==============================================================================
-function get_k8s_configuration() {
-
-    K8S_CURENT_CONTEXT=$(get_current_context)
-    info "Using the Kubernetes context: $K8S_CURENT_CONTEXT"
-
-    K8S_CLUSTER_SERVER=$(get_cluster_server)    
-    info "The Kubernetes cluster server: $K8S_CLUSTER_SERVER"
-}
-
-# ==============================================================================
-# Method description
-# Arguments:
-#   Key type
-#   Number of bits for the key
-#   Filename: The output path for the SSH key
-# Returns:
-#   None
-# ==============================================================================
-function verify_k8s_cluster_status() {
-
-    local K8S_CLUSTER_STATUS=$(get_cluster_status "$K8S_CLUSTER_SERVER")
-
-    debug_section "Fetching cluster status..." "$K8S_CLUSTER_STATUS"
-}
-
-# ==============================================================================
-# Method description
-# Arguments:
-#   Key type
-#   Number of bits for the key
-#   Filename: The output path for the SSH key
-# Returns:
-#   None
-# ==============================================================================
-function verify_k8s_cluster_readiness() {
-
-    local K8S_CLUSTER_READINESS=$(get_cluster_readiness "$K8S_CLUSTER_SERVER")
-
-    debug_section "Verifying cluster readiness..." "$K8S_CLUSTER_READINESS"
-}
-
-# ==============================================================================
-# Method description
-# Arguments:
-#   Key type
-#   Number of bits for the key
-#   Filename: The output path for the SSH key
-# Returns:
-#   None
-# ==============================================================================
-function get_k8s_cluster_nodes() {
-
-    local K8S_CLUSTER_NODES=$(get_cluster_nodes)
-
-    cluster_node_message=$(echo "$K8S_CLUSTER_NODES" | tr "{}" " " | column -t -s ",")
-
-    debug_section "Getting cluster nodes information..." "$cluster_node_message"
-}
-
-# ==============================================================================
-# Method description
-# Arguments:
-#   Key type
-#   Number of bits for the key
-#   Filename: The output path for the SSH key
-# Returns:
-#   None
-# ==============================================================================
 function get_ssh_public_key() {
 
     SSH_DIR=$(dirname $SSH_KEY_PATH)
@@ -161,9 +93,49 @@ info "Start configure prerequisites"
 # Install required packages
 install_required_packages "${PACKAGES[@]}"
 
-get_k8s_configuration && verify_k8s_cluster_status && verify_k8s_cluster_readiness
+k8s_current_context=$(get_current_context)
+info "Using the Kubernetes context: $k8s_current_context"
 
-get_k8s_cluster_nodes
+k8s_cluster_server=$(get_cluster_server)    
+info "The Kubernetes cluster server: $k8s_cluster_server"
+
+info "Fetching cluster status..."
+k8s_cluster_status=$(get_cluster_status "$k8s_cluster_server")
+
+if [ "$k8s_cluster_status" == "200" ]; then
+    info "Kubernetes cluster status: OK"
+else
+    error "Kubernetes cluster status: Failed"
+    exit 1
+fi
+
+info "Getting nodes information..."
+k8s_cluster_nodes_response=$(get_cluster_nodes)
+k8s_cluster_nodes_format=$(echo "$k8s_cluster_nodes_response" | tr "{}" " " | column -t -s ",")
+
+IFS=$'\r\n' read -rd '' -a nodes <<< "$k8s_cluster_nodes_format"
+for node in "${nodes[@]}"
+    do
+        info "$node"
+    done
+
+info "Verifying cluster readiness..."
+k8s_cluster_readiness=$(get_cluster_readiness "$k8s_cluster_server")
+
+if [ "$k8s_cluster_readiness" == "200" ]; then
+    info "Kubernetes cluster is ready"
+else
+    error "Kubernetes cluster is not ready"
+    exit 1
+fi
+
+printf 'Do you want to continue with the installation? [Y/n] '
+read choice
+
+if [ "$choice" != "${choice#[nN]}" ] ;then
+    echo Abort
+    exit 1
+fi
 
 setup_default_environment
 deploy_k8s_openssh_server
