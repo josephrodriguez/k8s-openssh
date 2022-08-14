@@ -8,9 +8,10 @@
 #   None
 # ==============================================================================
 function query_package_version() {
-    local PACKAGE=$1
+    
+    local package=$1
 
-    echo $(dpkg-query --showformat='${Version}' --show  $PACKAGE 2>/dev/null)
+    echo $(dpkg-query --showformat='${Version}' --show  $package 2>/dev/null)
 }
 
 # ==============================================================================
@@ -21,9 +22,10 @@ function query_package_version() {
 #   None
 # ==============================================================================
 function install_package() { 
-    local PACKAGE=$1
 
-    sudo apt-get install $PACKAGE -y
+    local package=$1
+
+    sudo apt-get install $package -y
 }
 
 # ==============================================================================
